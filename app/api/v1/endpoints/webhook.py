@@ -4,6 +4,16 @@ from app.domain.services.conversation_service import ConversationService
 
 router = APIRouter()
 
+@router.get("/info")
+async def get_webhook_info(request: Request):
+    """Genera dinámicamente la URL completa del Webhook basada en el dominio del entorno (Vercel)."""
+    base_url = str(request.base_url).rstrip('/')
+    return {
+        "webhook_url": f"{base_url}/api/v1/webhook/whatsapp",
+        "verify_token": settings.wsp_verify_token,
+        "instructions": "Usa estos datos en el Meta Developer Portal para configurar el webhook."
+    }
+
 @router.get("/")
 @router.get("/whatsapp")
 async def verify_webhook(
