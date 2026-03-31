@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, HTTPException, Query
+from fastapi import APIRouter, Request, HTTPException, Query, Response
 from app.core.config import settings
 from app.domain.services.conversation_service import ConversationService
 
@@ -24,8 +24,11 @@ async def verify_webhook(
     """Verificación del webhook con Meta para activar WhatsApp Cloud API."""
     if mode == "subscribe" and token == settings.wsp_verify_token:
         print("WEBHOOK VERIFIED ✅")
-        # Challenge puede ser string o int, Meta lo espera como el mismo valor recibido
-        return challenge if challenge.isdigit() else challenge
+        # Meta espera el challenge EXACTAMENTE como texto plano, sin comillas (No JSON).
+        return Response(content=str(challenge), media_type="text/plain")
+    
+    # Si llega sin parámetros o con token incorrecto, lanzamos 403
+    print(f"WEBHOOK ERROR: Mode={mode}, TokenReceived={token}, TokenExpected={settings.wsp_verify_token}")
     raise HTTPException(status_code=403, detail="Invalid token")
 
 @router.post("/")
