@@ -91,11 +91,13 @@ class ConversationRepository:
     def get_full_catalog(self, account_id: str):
         """Retorna el catálogo filtrado por cuenta."""
         try:
+            print(f"DEBUG REPO: Querying catalog for account_id='{account_id}'")
             res = self.supabase.table("catalog_items")\
                 .select("*")\
                 .eq("account_id", account_id)\
                 .eq("is_active", True)\
                 .execute()
+            print(f"DEBUG REPO: Found {len(res.data)} items for account {account_id}")
             return res.data
         except Exception as e:
             print(f"ERROR REPO get_full_catalog: {str(e)}")
@@ -159,25 +161,31 @@ class ConversationRepository:
             return []
 
     def get_kpis(self):
-        """Calcula los indicadores KPI del dashboard."""
+        """Calcula los indicadores KPI del dashboard en tiempo real."""
         try:
+            # Fecha de inicio de hoy (UTC)
             now_iso = datetime.utcnow().strftime("%Y-%m-%d")
             
-            # Cotizaciones Hoy
+            # 1. Cotizaciones Hoy: Cuántos registros en la tabla 'quotes' hoy
             res_quotes = self.supabase.table("quotes").select("id", count="exact").gte("created_at", now_iso).execute()
-            cotizaciones_hoy = res_quotes.count or 0
+            cotizaciones_hoy = res_quotes.count if res_quotes.count is not None else len(res_quotes.data)
             
-            # Nuevos leads (interacciones hoy)
-            res_leads = self.supabase.table("clients").select("id", count="exact").gte("last_interaction", now_iso).execute()
-            nuevos_leads = res_leads.count or 0
+            # 2. Nuevos Leads: Cuántos clientes registrados 'created_at' hoy
+            res_leads = self.supabase.table("clients").select("id", count="exact").gte("created_at", now_iso).execute()
+            nuevos_leads = res_leads.count if res_leads.count is not None else len(res_leads.data)
             
-            conversion = int((cotizaciones_hoy / max(nuevos_leads, 1)) * 100)
+            # 3. Conversión: Porcentaje de cotizaciones vs interacciones activas hoy
+            res_active = self.supabase.table("clients").select("id", count="exact").gte("last_interaction", now_iso).execute()
+            active_today = res_active.count if res_active.count is not None else len(res_active.data)
+            
+            conversion_pct = int((cotizaciones_hoy / max(active_today, 1)) * 100)
+            if conversion_pct > 100: conversion_pct = 100
             
             return {
                 "cotizaciones_hoy": str(cotizaciones_hoy),
                 "nuevos_leads": str(nuevos_leads),
                 "tiempo_respuesta": "1m 15s",
-                "conversion": f"{conversion}%"
+                "conversion": f"{conversion_pct}%"
             }
         except Exception as e:
             print(f"ERROR REPO get_kpis: {str(e)}")

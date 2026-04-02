@@ -49,7 +49,7 @@ class AIClient:
         base_prompt = custom_prompt if custom_prompt else self.v3_system_prompt
         system_message = base_prompt.replace("{context}", catalog_context)
         
-        messages = [{"role": "system", "content": system_message}]
+        messages = [{"role": "system", "content": base_prompt.replace("{context}", "[CONTEXTO REEMPLAZADO ABAJO]")}]
         
         # Inyectar historial relevante (máx 5 mensajes previos)
         actual_history = chat_history if isinstance(chat_history, list) else []
@@ -57,6 +57,11 @@ class AIClient:
             role = "assistant" if h.get("sender") == "bot" else "user"
             messages.append({"role": role, "content": h.get("message", "")})
             
+        # Grounding (Inyección de datos reales al final para mayor relevancia)
+        grounding_msg = f"CATÁLOGO REAL PARA ESTE CLIENTE:\n{catalog_context}\n\nREGLA: Solo ofrece estos servicios. No inventes otros basados en el historial."
+        messages.append({"role": "system", "content": grounding_msg})
+        
+        # Mensaje del usuario
         messages.append({"role": "user", "content": user_message})
 
         try:
