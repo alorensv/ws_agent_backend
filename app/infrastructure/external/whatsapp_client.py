@@ -35,12 +35,13 @@ class WhatsAppClient:
         url = f"{self._get_url(phone_id)}/media"
         headers = self._get_headers(token)
         
+        import os
         async with httpx.AsyncClient() as client:
             with open(file_path, "rb") as f:
                 res = await client.post(
                     url,
                     headers=headers,
-                    files={"file": (file_path, f, "application/pdf")},
+                    files={"file": (os.path.basename(file_path), f, "application/pdf")},
                     data={"messaging_product": "whatsapp"}
                 )
                 print(f"RES WSP UPLOAD: {res.status_code}")
