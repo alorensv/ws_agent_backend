@@ -73,9 +73,14 @@ class ConversationService:
                 token=account.get("wsp_token")
             )
             
-            # 8. Actualizar historial y estado en Supabase
+            # 8. Actualizar historial, estado y perfil en Supabase
             self.repo.save_message(client["id"], "bot", bot_text)
-            self.repo.update_state(client["id"], ai_res.get("next_state", {}))
+            next_state = ai_res.get("next_state", {})
+            self.repo.update_state(client["id"], next_state)
+            
+            # Sincronizar campos de lead si fueron detectados
+            if next_state.get("full_name") or next_state.get("email"):
+                self.repo.update_client_profile(client["id"], next_state)
             
             return {"status": "message_sent", "account": account["name"]}
 

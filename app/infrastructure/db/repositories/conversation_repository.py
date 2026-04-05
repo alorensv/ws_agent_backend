@@ -88,6 +88,20 @@ class ConversationRepository:
         except Exception as e:
             print(f"ERROR REPO update_state: {str(e)}")
 
+    def update_client_profile(self, client_id: str, data: dict):
+        """Actualiza campos específicos del perfil del cliente (email, full_name)."""
+        try:
+            update_payload = {
+                "last_interaction": datetime.utcnow().isoformat()
+            }
+            if data.get("full_name"): update_payload["full_name"] = data["full_name"]
+            if data.get("email"): update_payload["email"] = data["email"]
+            
+            if len(update_payload) > 1:
+                self.supabase.table("clients").update(update_payload).eq("id", client_id).execute()
+        except Exception as e:
+            print(f"ERROR REPO update_client_profile: {str(e)}")
+
     def get_full_catalog(self, account_id: str):
         """Retorna el catálogo filtrado por cuenta."""
         try:
