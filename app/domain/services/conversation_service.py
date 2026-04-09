@@ -56,22 +56,13 @@ class ConversationService:
             if intent == "generate_quote_v2":
                 print(f"DEBUG - Disparando Generación de Cotización para {account['name']}")
                 if bot_text:
-                    await self.wsp.send_text(
-                        client_phone, 
-                        bot_text, 
-                        phone_id=account.get("wsp_phone_id"), 
-                        token=account.get("wsp_token")
-                    )
+                    await self._send_response(client_phone, bot_text, account)
+                
                 item = self._match_catalog_item(user_text, catalog)
                 return await self.quote_service.process_v2_quote(client, item, user_text, account)
 
             # 7. Responder al usuario vía WhatsApp usando credenciales de la cuenta
-            await self.wsp.send_text(
-                client_phone, 
-                bot_text, 
-                phone_id=account.get("wsp_phone_id"), 
-                token=account.get("wsp_token")
-            )
+            await self._send_response(client_phone, bot_text, account)
             
             # 8. Actualizar historial, estado y perfil en Supabase
             self.repo.save_message(client["id"], "bot", bot_text)
@@ -87,6 +78,36 @@ class ConversationService:
         except Exception as e:
             print(f"CRITICAL ERROR IN CONVERSATION SERVICE: {str(e)}")
             return {"status": "error", "message": str(e)}
+
+    async def _send_response(self, phone: str, text: str, account: dict):
+        """Detecta botones en el texto y envía el formato correspondiente a WhatsApp."""
+        import re
+        button_matches = re.findall(r'\[BOTÓN:\s*(.*?)\]', text)
+        
+        phone_id = account.get("wsp_phone_id")
+        token = account.get("wsp_token")
+
+        if button_matches:
+            # Limpiar el texto de los marcadores de botones
+            clean_text = re.sub(r'\[BOTÓN:\s*.*?\]', '', text).strip()
+            # Si el texto queda vacío después de quitar botones, WhatsApp falla, enviamos un texto genérico
+            if not clean_text:
+                clean_text = "Selecciona una opción:"
+            
+            await self.wsp.send_buttons(
+                phone,
+                clean_text,
+                button_matches,
+                phone_id=phone_id,
+                token=token
+            )
+        else:
+            await self.wsp.send_text(
+                phone, 
+                text, 
+                phone_id=phone_id, 
+                token=token
+            )
 
     def _match_catalog_item(self, text, catalog):
         """Lógica simple de matching basada en palabras clave del catálogo."""

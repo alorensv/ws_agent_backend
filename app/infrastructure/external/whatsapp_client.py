@@ -44,8 +44,13 @@ class WhatsAppClient:
                     files={"file": (os.path.basename(file_path), f, "application/pdf")},
                     data={"messaging_product": "whatsapp"}
                 )
-                print(f"RES WSP UPLOAD: {res.status_code}")
-                return res.json().get("id")
+                if res.status_code != 200:
+                    print(f"ERROR WSP UPLOAD: {res.status_code} - {res.text}")
+                    return None
+                
+                media_id = res.json().get("id")
+                print(f"SUCCESS WSP UPLOAD: {media_id}")
+                return media_id
 
     async def send_document(self, phone: str, media_id: str, filename: str, phone_id: str = None, token: str = None):
         """Envía un documento PDF a través de una cuenta específica."""
@@ -60,5 +65,39 @@ class WhatsAppClient:
 
         async with httpx.AsyncClient() as client:
             res = await client.post(url, json=payload, headers=headers)
-            print(f"RES WSP SEND DOC: {res.status_code}")
+            if res.status_code != 200:
+                print(f"ERROR WSP SEND DOC: {res.status_code} - {res.text}")
+            else:
+                print(f"SUCCESS WSP SEND DOC: {res.status_code}")
+            return res.json()
+
+    async def send_buttons(self, phone: str, text: str, buttons: list, phone_id: str = None, token: str = None):
+        """Envía un mensaje con botones interactivos (máximo 3)."""
+        # Formatear botones para la API de WhatsApp
+        formatted_buttons = []
+        for i, btn_title in enumerate(buttons[:3]): # WhatsApp permite máximo 3 botones de respuesta rápida
+            formatted_buttons.append({
+                "type": "reply",
+                "reply": {
+                    "id": f"btn_{i}",
+                    "title": btn_title[:20] # El título tiene un límite de 20 caracteres
+                }
+            })
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": phone,
+            "type": "interactive",
+            "interactive": {
+                "type": "button",
+                "body": {"text": text},
+                "action": {"buttons": formatted_buttons}
+            }
+        }
+        url = f"{self._get_url(phone_id)}/messages"
+        headers = self._get_headers(token)
+
+        async with httpx.AsyncClient() as client:
+            res = await client.post(url, json=payload, headers=headers)
+            print(f"RES WSP SEND BUTTONS: {res.status_code}")
             return res.json()

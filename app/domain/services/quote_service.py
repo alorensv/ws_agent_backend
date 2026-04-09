@@ -58,5 +58,8 @@ class QuoteService:
             # Actualizar historial
             self.repo.save_message(client["id"], "bot", f"Cotización enviada: {quote_id}")
             return {"status": "quote_v2_sent", "quote_id": quote_id}
-        
-        return {"status": "error_sending_pdf"}
+        else:
+            print(f"ERROR: No se pudo obtener media_id para el PDF.")
+            error_msg = "Lo siento, tuve un problema al generar tu archivo PDF. Pero no te preocupes, un ejecutivo se contactará contigo para enviártelo manualmente."
+            await self.wsp.send_text(client["phone"], error_msg, phone_id=wsp_phone_id, token=wsp_token)
+            return {"status": "error_sending_pdf"}
