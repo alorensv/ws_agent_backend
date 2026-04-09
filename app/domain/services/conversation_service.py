@@ -54,15 +54,26 @@ class ConversationService:
 
             # 6. Lógica de Negocio (Cotización con cuenta completa)
             if intent == "generate_quote_v2":
-                print(f"DEBUG - Disparando Generación de Cotización para {account['name']}")
-                if bot_text:
-                    await self._send_response(client_phone, bot_text, account)
-                
-                item = self._match_catalog_item(user_text, catalog)
-                return await self.quote_service.process_v2_quote(client, item, user_text, account)
-
-            # 7. Responder al usuario vía WhatsApp usando credenciales de la cuenta
-            await self._send_response(client_phone, bot_text, account)
+                # Seguridad extra: Si ya se generó, no lo hacemos de nuevo aunque la IA lo pida
+                if client["state"].get("quote_generated"):
+                    print(f"DEBUG - Cotización ya generada anteriormente para {client_phone}. Ignorando duplicado.")
+                    intent = "chat" # Forzamos a chat normal
+                else:
+                    print(f"DEBUG - Disparando Generación de Cotización para {account['name']}")
+                    if bot_text:
+                        await self._send_response(client_phone, bot_text, account)
+                    
+                    # Marcar que la cotización ya fue generada en el estado
+                    ai_res["next_state"]["quote_generated"] = True
+                    
+                    item = self._match_catalog_item(user_text, catalog)
+                    # No retornamos de inmediato, guardamos estado e historial primero
+                    quote_res = await self.quote_service.process_v2_quote(client, item, user_text, account)
+                    bot_text = f"{bot_text}\n\n[Cotización Generada]" if bot_text else "[Cotización Generada]"
+            
+            if intent != "generate_quote_v2":
+                # 7. Responder al usuario vía WhatsApp usando credenciales de la cuenta
+                await self._send_response(client_phone, bot_text, account)
             
             # 8. Actualizar historial, estado y perfil en Supabase
             self.repo.save_message(client["id"], "bot", bot_text)
@@ -72,6 +83,9 @@ class ConversationService:
             # Sincronizar campos de lead si fueron detectados
             if next_state.get("full_name") or next_state.get("email"):
                 self.repo.update_client_profile(client["id"], next_state)
+            
+            if intent == "generate_quote_v2":
+                return quote_res
             
             return {"status": "message_sent", "account": account["name"]}
 

@@ -7,8 +7,8 @@ from datetime import datetime
 class PdfHelper:
     def generate_quote_pdf(self, quote_data: dict, client_info: dict) -> str:
         """Genera un archivo PDF de cotización profesional utilizando ReportLab."""
-        os.makedirs("tmp", exist_ok=True)
-        file_path = f"tmp/Cotizacion_{quote_data['id'][:8]}.pdf"
+        os.makedirs("/tmp", exist_ok=True)
+        file_path = f"/tmp/Cotizacion_{quote_data['id'][:8]}.pdf"
         
         c = canvas.Canvas(file_path, pagesize=letter)
         width, height = letter
