@@ -39,6 +39,10 @@ class QuoteService:
         quote_data = {"id": quote_id, "items": items_payload, "total": final_price}
         client_info = {"phone": client["phone"], "name": "Potencial Cliente (V2.5)"}
         pdf_path = self.pdf_helper.generate_quote_pdf(quote_data, client_info)
+        self.repo.update_quote(quote_id, {
+            "pdf_url": pdf_path,
+            "status": "pdf_generated"
+        })
         
         # 3. Envío: Subir a Meta y mandar al chat usando credenciales de la cuenta
         print(f"DEBUG STEP 3 - Subiendo y enviando vía WhatsApp para cuenta {account['name']}")
@@ -50,6 +54,7 @@ class QuoteService:
         if media_id:
             pdf_name = f"Cotizacion_{str(quote_id)[:4]}.pdf"
             await self.wsp.send_document(client["phone"], media_id, pdf_name, phone_id=wsp_phone_id, token=wsp_token)
+            self.repo.update_quote(quote_id, {"status": "sent"})
             
             # Mensaje de Cierre y Validación
             msg = f"✅ **Propuesta Formal Generada por ${final_price:,.0f} CLP**\n\n⚠️ **Importante**: Este es un valor de referencia. Un ejecutivo comercial validará tu requerimiento en breve para darte el sello final de aprobación."
@@ -60,6 +65,7 @@ class QuoteService:
             return {"status": "quote_v2_sent", "quote_id": quote_id}
         else:
             print(f"ERROR: No se pudo obtener media_id para el PDF.")
+            self.repo.update_quote(quote_id, {"status": "pdf_failed_delivery"})
             error_msg = "Lo siento, tuve un problema al generar tu archivo PDF. Pero no te preocupes, un ejecutivo se contactará contigo para enviártelo manualmente."
             await self.wsp.send_text(client["phone"], error_msg, phone_id=wsp_phone_id, token=wsp_token)
             return {"status": "error_sending_pdf"}

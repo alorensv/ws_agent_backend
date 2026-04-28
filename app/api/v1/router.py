@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import products, quotes, webhook, conversations, dashboard
+from app.api.v1.endpoints import products, quotes, webhook, conversations, dashboard, prompt_training
 
 api_router = APIRouter()
 
@@ -17,3 +17,6 @@ api_router.include_router(conversations.router, prefix="/conversations", tags=["
 
 # 5. Dashboard KPIs
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
+
+# 6. Prompt training por cuenta
+api_router.include_router(prompt_training.router, prefix="/prompt-training", tags=["Prompt Training"])
