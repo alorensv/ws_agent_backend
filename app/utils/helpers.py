@@ -27,15 +27,16 @@ class PdfHelper:
         c.setFont("Helvetica", 10)
         c.drawString(50, height - 135, f"Teléfono: {client_info['phone']}")
         c.drawString(50, height - 150, f"Nombre: {client_info['name']}")
+        c.drawString(50, height - 165, f"Email: {client_info.get('email', 'No proporcionado')}")
 
         # Tabla de Items
-        c.line(50, height - 170, width - 50, height - 170)
-        c.drawString(50, height - 185, "Servicio/Producto")
-        c.drawString(400, height - 185, "Cantidad")
-        c.drawString(500, height - 185, "Precio")
         c.line(50, height - 190, width - 50, height - 190)
+        c.drawString(50, height - 205, "Servicio/Producto")
+        c.drawString(400, height - 205, "Cantidad")
+        c.drawString(500, height - 205, "Precio")
+        c.line(50, height - 210, width - 50, height - 210)
 
-        y = height - 210
+        y = height - 230
         for item in quote_data["items"]:
             c.drawString(50, y, item["name"])
             c.drawString(400, y, str(item["qty"]))

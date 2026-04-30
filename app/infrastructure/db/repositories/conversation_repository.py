@@ -145,6 +145,27 @@ class ConversationRepository:
         except Exception as e:
             print(f"ERROR REPO update_quote: {str(e)}")
 
+    def upload_pdf(self, file_path: str, quote_id: str):
+        """Sube un archivo PDF al bucket 'quotes' de Supabase Storage y retorna la URL pública."""
+        try:
+            filename = f"{quote_id}.pdf"
+            bucket_name = "quotes"
+            
+            # 1. Subir el archivo (sobrescribir si existe)
+            with open(file_path, 'rb') as f:
+                self.supabase.storage.from_(bucket_name).upload(
+                    path=filename,
+                    file=f,
+                    file_options={"content-type": "application/pdf", "x-upsert": "true"}
+                )
+            
+            # 2. Obtener URL pública
+            res = self.supabase.storage.from_(bucket_name).get_public_url(filename)
+            return res
+        except Exception as e:
+            print(f"ERROR REPO upload_pdf: {str(e)}")
+            return None
+
     def _format_quote_dashboard_item(self, quote: dict):
         client = quote.get("clients") or {}
         item = quote.get("catalog_items") or {}

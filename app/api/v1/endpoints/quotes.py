@@ -32,6 +32,22 @@ async def list_quotes(account_id: str, limit: int = 100):
     return repo.list_quotes_by_account(account_id=account_id, limit=limit)
 
 
+@router.patch("/{quote_id}", response_model=Any)
+async def update_quote_status(quote_id: str, payload: dict):
+    """Actualiza el estado u otros campos de una cotización."""
+    repo = ConversationRepository()
+    # Permitimos solo campos válidos (status)
+    update_data = {}
+    if "status" in payload:
+        update_data["status"] = payload["status"]
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No se proporcionaron campos válidos para actualizar.")
+        
+    repo.update_quote(quote_id, update_data)
+    return {"status": "success", "updated_id": quote_id}
+
+
 @router.get("/{quote_id}/pdf")
 async def get_quote_pdf(quote_id: str):
     """Permite abrir el PDF asociado a una cotizacion."""

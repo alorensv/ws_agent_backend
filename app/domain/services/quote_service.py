@@ -15,20 +15,26 @@ class QuoteService:
         account_id = account["id"]
         base_price = float(item.get("base_price", 500000))
         
+        # 0. Recuperar requerimientos y perfil desde el estado del cliente
+        client_state = client.get("state", {})
+        captured_reqs = client_state.get("user_requirements", user_text)
+        client_name = client_state.get("full_name") or "Cliente Interesado"
+        client_email = client_state.get("email") or "No proporcionado"
+        
         # Simulación de ajuste de precio basado en detalles (30% incremento si hay specs)
         final_price = base_price
-        if any(w in user_text.lower() for w in ["detalles", "especifico", "personalizado", "mas", "info"]):
+        if any(w in captured_reqs.lower() for w in ["detalles", "especifico", "personalizado", "mas", "info"]):
             final_price = base_price * 1.3
             
         items_payload = [{"name": item["name"].upper(), "qty": 1, "price": final_price}]
         
-        # 1. Persistencia: Guardar en Supabase (quotes_v2) con account_id
+        # 1. Persistencia: Guardar en Supabase (quotes) con account_id y requerimientos reales
         print(f"DEBUG STEP 1 - Guardando cotización en Supabase para {client['phone']}")
         self.repo.save_quote(
             id=quote_id,
             client_id=client["id"],
             item_id=item["id"],
-            requirements=user_text,
+            requirements=captured_reqs,
             price=final_price,
             status="pending_validation",
             account_id=account_id
@@ -37,10 +43,19 @@ class QuoteService:
         # 2. Generación de PDF: PDFHelper se encarga de ReportLab
         print(f"DEBUG STEP 2 - Generando PDF físico")
         quote_data = {"id": quote_id, "items": items_payload, "total": final_price}
-        client_info = {"phone": client["phone"], "name": "Potencial Cliente (V2.5)"}
+        client_info = {
+            "phone": client["phone"], 
+            "name": client_name,
+            "email": client_email
+        }
         pdf_path = self.pdf_helper.generate_quote_pdf(quote_data, client_info)
+        
+        # 2.1 Subir a Supabase Storage y obtener URL pública
+        print(f"DEBUG STEP 2.1 - Subiendo PDF a Supabase Storage")
+        public_url = self.repo.upload_pdf(pdf_path, quote_id)
+        
         self.repo.update_quote(quote_id, {
-            "pdf_url": pdf_path,
+            "pdf_url": public_url or pdf_path, # Fallback a local path si falla upload
             "status": "pdf_generated"
         })
         
@@ -57,7 +72,7 @@ class QuoteService:
             self.repo.update_quote(quote_id, {"status": "sent"})
             
             # Mensaje de Cierre y Validación
-            msg = f"✅ **Propuesta Formal Generada por ${final_price:,.0f} CLP**\n\n⚠️ **Importante**: Este es un valor de referencia. Un ejecutivo comercial validará tu requerimiento en breve para darte el sello final de aprobación."
+            msg = f"✅ **Propuesta Formal Generada por ${final_price:,.0f} CLP**\n\nHola {client_name}, aquí tienes tu cotización para el servicio {item['name']}. Un ejecutivo comercial validará tu requerimiento en breve para darte el sello final de aprobación."
             await self.wsp.send_text(client["phone"], msg, phone_id=wsp_phone_id, token=wsp_token)
             
             # Actualizar historial

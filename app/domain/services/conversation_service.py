@@ -53,6 +53,8 @@ class ConversationService:
             intent = ai_res.get("intent", "chat")
 
             # 6. Lógica de Negocio (Cotización con cuenta completa)
+            next_state = ai_res.get("next_state", {})
+            
             if intent == "generate_quote_v2":
                 # Seguridad extra: Si ya se generó, no lo hacemos de nuevo aunque la IA lo pida
                 if client["state"].get("quote_generated"):
@@ -64,11 +66,12 @@ class ConversationService:
                         await self._send_response(client_phone, bot_text, account)
                     
                     # Marcar que la cotización ya fue generada en el estado
-                    ai_res["next_state"]["quote_generated"] = True
+                    next_state["quote_generated"] = True
                     
                     item = self._match_catalog_item(user_text, catalog)
-                    # No retornamos de inmediato, guardamos estado e historial primero
-                    quote_res = await self.quote_service.process_v2_quote(client, item, user_text, account)
+                    # Pasamos el cliente con el estado actualizado
+                    client_with_latest_state = {**client, "state": next_state}
+                    quote_res = await self.quote_service.process_v2_quote(client_with_latest_state, item, user_text, account)
                     bot_text = f"{bot_text}\n\n[Cotización Generada]" if bot_text else "[Cotización Generada]"
             
             if intent != "generate_quote_v2":
@@ -77,7 +80,6 @@ class ConversationService:
             
             # 8. Actualizar historial, estado y perfil en Supabase
             self.repo.save_message(client["id"], "bot", bot_text)
-            next_state = ai_res.get("next_state", {})
             self.repo.update_state(client["id"], next_state)
             
             # Sincronizar campos de lead si fueron detectados
